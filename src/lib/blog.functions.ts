@@ -363,8 +363,9 @@ export const aiGenerateArticle = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => AiInput.parse(d))
   .handler(async ({ data }) => {
     await assertAdmin();
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY non configurata");
+    const apiKey = process.env.AI_API_KEY;
+    const gateway = process.env.AI_GATEWAY_URL;
+    if (!apiKey || !gateway) throw new Error("AI_API_KEY e AI_GATEWAY_URL non configurate");
 
     const system = `Sei un editor senior di un magazine italiano B2B su lead generation, LinkedIn e CRM (LORI CRM).
 Scrivi articoli editoriali professionali, naturali, mai "tono AI". Frasi variate, esempi concreti, dati realistici.
@@ -379,11 +380,11 @@ Categoria: ${data.category}
 ${data.audience ? `Pubblico: ${data.audience}` : ""}
 Genera l'articolo completo.`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch(gateway, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: process.env.AI_MODEL ?? "gpt-4o",
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -393,7 +394,7 @@ Genera l'articolo completo.`;
       }),
     });
     if (res.status === 429) throw new Error("Limite di utilizzo AI raggiunto. Riprova tra poco.");
-    if (res.status === 402) throw new Error("Crediti AI esauriti. Aggiungi credito al workspace Lovable.");
+    if (res.status === 402) throw new Error("Crediti AI esauriti presso il provider configurato.");
     if (!res.ok) throw new Error(`Gateway AI errore ${res.status}`);
     const json = await res.json();
     const call = json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -428,13 +429,14 @@ function stripTags(html: string): string {
 }
 
 async function callGateway(system: string, user: string, tool: any) {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY non configurata");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const apiKey = process.env.AI_API_KEY;
+  const gateway = process.env.AI_GATEWAY_URL;
+  if (!apiKey || !gateway) throw new Error("AI_API_KEY e AI_GATEWAY_URL non configurate");
+  const res = await fetch(gateway, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: process.env.AI_MODEL_FAST ?? "gpt-4o-mini",
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -609,13 +611,14 @@ function countWords(html: string): number {
 }
 
 async function generateImagePng(prompt: string): Promise<Uint8Array> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY non configurata");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+  const apiKey = process.env.AI_API_KEY;
+  const gateway = process.env.AI_GATEWAY_URL;
+  if (!apiKey || !gateway) throw new Error("AI_API_KEY e AI_GATEWAY_URL non configurate");
+  const res = await fetch(process.env.AI_IMAGE_URL ?? gateway, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-image",
+      model: process.env.AI_IMAGE_MODEL ?? "gpt-image-1",
       messages: [{ role: "user", content: prompt }],
       modalities: ["image", "text"],
     }),
