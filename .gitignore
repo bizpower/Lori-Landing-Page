@@ -17,3 +17,10 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+node_modules
+dist
+.output
+.nitro
+.tanstack
+src/routeTree.gen.ts
