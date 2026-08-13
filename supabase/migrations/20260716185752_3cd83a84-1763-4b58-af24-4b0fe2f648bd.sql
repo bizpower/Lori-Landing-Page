@@ -1,0 +1,11 @@
+GRANT SELECT ON public.posts TO anon, authenticated;
+GRANT SELECT ON public.post_categories TO anon, authenticated;
+GRANT ALL ON public.posts TO service_role;
+GRANT ALL ON public.post_categories TO service_role;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.post_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public can read published posts" ON public.posts;
+CREATE POLICY "Public can read published posts" ON public.posts FOR SELECT USING (status = 1);
+DROP POLICY IF EXISTS "Public can read categories" ON public.post_categories;
+CREATE POLICY "Public can read categories" ON public.post_categories FOR SELECT USING (true);
+NOTIFY pgrst, 'reload schema';
