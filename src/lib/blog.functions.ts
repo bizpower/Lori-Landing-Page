@@ -5,13 +5,15 @@ import { setCookie, deleteCookie } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAdmin } from "./admin.server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-let _pub: ReturnType<typeof createClient> | undefined;
+let _pub: ReturnType<typeof createClient<Database>> | undefined;
 function pubClient() {
   if (_pub) return _pub;
-  const url = process.env.SUPABASE_URL!;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
-  _pub = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Stessi default del client: servono per SSR di magazine, articoli e sitemap.
+  const url = process.env.SUPABASE_URL || "https://jmgiupcnsknaxgeegjwf.supabase.co";
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptZ2l1cGNuc2tuYXhnZWVnandmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDkwNzQsImV4cCI6MjA5MzU4NTA3NH0.eaC0w08WaegKNRpz70UXo_JKizzqKhDW6_S3vfJDgcY";
+  _pub = createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   return _pub;
 }
 
