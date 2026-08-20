@@ -11,8 +11,8 @@ let _pub: ReturnType<typeof createClient<Database>> | undefined;
 function pubClient() {
   if (_pub) return _pub;
   // Stessi default del client: servono per SSR di magazine, articoli e sitemap.
-  const url = process.env.SUPABASE_URL || "https://jmgiupcnsknaxgeegjwf.supabase.co";
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptZ2l1cGNuc2tuYXhnZWVnandmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDkwNzQsImV4cCI6MjA5MzU4NTA3NH0.eaC0w08WaegKNRpz70UXo_JKizzqKhDW6_S3vfJDgcY";
+  const url = process.env.SUPABASE_URL || "https://kqzwtmesteksllmzdxoo.supabase.co";
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_LbBei93XUFHAtc-hZhoXFg_m15ULMzC";
   _pub = createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   return _pub;
 }

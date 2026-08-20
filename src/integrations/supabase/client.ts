@@ -9,8 +9,8 @@ function createSupabaseClient() {
   // pubblica per definizione: finisce comunque nel bundle servito al browser e
   // i dati sono protetti dalle policy RLS. Tenerla qui rende il deploy
   // autosufficiente per le pagine pubbliche e il magazine.
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://jmgiupcnsknaxgeegjwf.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptZ2l1cGNuc2tuYXhnZWVnandmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDkwNzQsImV4cCI6MjA5MzU4NTA3NH0.eaC0w08WaegKNRpz70UXo_JKizzqKhDW6_S3vfJDgcY";
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://kqzwtmesteksllmzdxoo.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_LbBei93XUFHAtc-hZhoXFg_m15ULMzC";
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
