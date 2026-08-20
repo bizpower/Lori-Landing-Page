@@ -22,6 +22,16 @@ export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((d: { email: string; password: string }) =>
     z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) }).parse(d))
   .handler(async ({ data }) => {
+    // Controllo esplicito: senza service role key il client admin lancia un
+    // errore generico a metà login. Meglio dire subito cosa manca, così chi
+    // configura il deploy sa dove guardare.
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[adminLogin] SUPABASE_SERVICE_ROLE_KEY o SUPABASE_URL non configurate");
+      return {
+        ok: false as const,
+        error: "Area riservata non configurata: manca SUPABASE_SERVICE_ROLE_KEY nell'ambiente di deploy.",
+      };
+    }
     const { data: signIn, error } = await supabaseAdmin.auth.signInWithPassword({
       email: data.email,
       password: data.password,

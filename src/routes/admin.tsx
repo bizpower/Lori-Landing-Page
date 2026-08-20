@@ -58,9 +58,17 @@ function LoginGate({ onSuccess }: { onSuccess: () => void }) {
         onSubmit={async (e) => {
           e.preventDefault();
           setLoading(true); setErr(null);
-          const res = await adminLogin({ data: { email, password: pwd } });
-          setLoading(false);
-          if (!res.ok) setErr(res.error); else onSuccess();
+          try {
+            const res = await adminLogin({ data: { email, password: pwd } });
+            if (!res.ok) setErr(res.error); else onSuccess();
+          } catch (e) {
+            // Senza questo ramo un errore della server function lascerebbe il
+            // bottone bloccato su "Accesso…" senza dire niente all'utente.
+            console.error("[admin] login fallito", e);
+            setErr("Errore di rete o backend non raggiungibile. Riprova tra poco.");
+          } finally {
+            setLoading(false);
+          }
         }}
         className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-6 shadow-lg"
       >
