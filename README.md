@@ -1,28 +1,31 @@
 # LORI CRM — Landing Page & Magazine
 
-Landing page pubblica e magazine di LORI CRM, estratti dal progetto Lovable
-`lori-landig-page` per poter essere sviluppati e ospitati in autonomia.
+Landing page pubblica e magazine di LORI CRM, con area riservata per la
+redazione degli articoli e la gestione delle consulenze.
 
 **Stack:** TanStack Start (SSR) + React 19 + Tailwind CSS 4 + shadcn/ui + Supabase.
+**Deploy:** Vercel (funzione Node `api/index.mjs` che serve il bundle SSR).
 
-> ⚠️ **Estrazione parziale.** Questo repository contiene la parte pubblica del sito
-> (landing, magazine, pagina articolo) e tutto il layer server. Alcuni file non sono
-> ancora stati estratti da Lovable: vedi [Stato dell'estrazione](#stato-dellestrazione).
-> Allo stato attuale il progetto **non compila** finché non vengono aggiunti i file mancanti.
+Il progetto è autonomo: nessuna dipendenza da Lovable, né in build né a runtime.
 
-## Cos'è già qui
+## Struttura
 
 | Area | File |
 |---|---|
-| Landing page completa | `src/routes/index.tsx` (994 righe, tutte le sezioni + mockup animati) |
-| Magazine | `src/routes/magazine.tsx` (lista, ricerca, filtri categoria, articolo in evidenza) |
+| Landing page | `src/routes/index.tsx` (tutte le sezioni + mockup animati) |
+| Magazine | `src/routes/magazine.tsx` (ricerca, filtri categoria, articolo in evidenza, paginazione) |
 | Pagina articolo | `src/routes/blog.$slug.tsx` (TOC, barra di lettura, share, FAQ JSON-LD, correlati) |
-| Shell e SEO | `src/routes/__root.tsx` (meta, Open Graph, Schema.org), `src/router.tsx` |
+| Area riservata | `src/routes/admin*.tsx` (login, elenco e editor articoli, consulenze) |
+| Shell e SEO | `src/routes/__root.tsx`, `src/routes/sitemap[.]xml.ts`, `public/robots.txt` |
 | Header / Footer | `src/components/site-header.tsx`, `site-footer.tsx` |
-| Layer server | `src/lib/blog.functions.ts` (~700 righe), `src/lib/admin.server.ts` |
-| Client Supabase | `src/integrations/supabase/client.ts`, `client.server.ts` |
+| Layer server | `src/lib/blog.functions.ts`, `src/lib/admin.server.ts` |
+| Client Supabase | `src/integrations/supabase/client.ts` (anon), `client.server.ts` (service role) |
+| Proxy immagini | `src/routes/api/public/post-image.$.ts` |
 | Design system | `src/styles.css` (token oklch, tipografia fluida, evidenziazione SEO) |
-| Config | `package.json`, `vite.config.ts`, `.env.example` |
+| Schema database | `supabase/migrations/*.sql`, `supabase/config.toml` |
+
+`src/routeTree.gen.ts` è generato dal plugin TanStack Router al primo `npm run dev`
+o `npm run build`: non va committato.
 
 ### Cosa fa il layer server
 
@@ -31,31 +34,9 @@ Landing page pubblica e magazine di LORI CRM, estratti dal progetto Lovable
 - **Auth admin** — login via Supabase + verifica ruolo in `user_roles`, sessione su cookie `lori_admin_uid` (httpOnly).
 - **Consulenze** — generazione slot (lun–ven, 9–18, ogni 30 min, 14 giorni), prenotazione con anti doppia-prenotazione, gestione stati.
 - **Waitlist** — iscrizioni `launch_notifications`.
-- **Blog pubblico** — elenco post paginato, articolo in evidenza, articolo per slug + correlati.
+- **Blog pubblico** — elenco post paginato (9 per pagina), articolo in evidenza, articolo per slug + correlati.
 - **CRUD admin** — creazione/modifica/eliminazione post e categorie, normalizzazione URL copertina.
 - **AI SEO** — generazione articolo completo, titolo, meta description, FAQ, evidenziazione keyword in stile RankMath, suggerimento link interni, generazione e inserimento immagini inline.
-
-## Stato dell'estrazione
-
-### Da completare
-
-| File | Note |
-|---|---|
-| `src/routes/admin*.tsx` (5 file) | Area riservata: login, elenco post, editor, consulenze |
-| `src/routes/api/public/post-image.$.ts` | Proxy pubblico per le immagini nel bucket privato |
-| `src/routes/sitemap[.]xml.ts` | Sitemap dinamica |
-| `src/components/consultation-dialog.tsx` | Dialog prenotazione, usato dalla landing |
-| `src/components/post-editor-form.tsx`, `tiptap-editor.tsx`, `article-converter.tsx` | Editor articoli e convertitore PDF→Excel |
-| `src/components/ui/*.tsx` (45 file) | Componenti shadcn/ui — rigenerabili con `npx shadcn@latest add` |
-| `src/integrations/supabase/types.ts`, `auth-attacher.ts`, `auth-middleware.ts` | Tipi del database e middleware auth |
-| `src/lib/utils.ts`, `converters.ts` | Utility (`cn`) e conversione documenti |
-| `src/hooks/use-mobile.tsx` | Hook breakpoint |
-| `supabase/migrations/*.sql` (10 file) + `config.toml` | Schema: posts, post_categories, consultations, launch_notifications, user_roles, storage |
-| `tsconfig.json`, `components.json`, `eslint.config.js`, `.prettierrc`, `wrangler.jsonc` | Configurazioni |
-| `src/assets/lori-logo.svg`, `public/favicon.svg`, `public/robots.txt` | Asset |
-
-`src/routeTree.gen.ts` è generato automaticamente dal plugin TanStack Router al primo
-`npm run dev` — non va estratto.
 
 ## Backend Supabase
 
@@ -63,14 +44,28 @@ La landing usa un progetto Supabase **distinto da quello del CRM**:
 
 | Progetto | Supabase ref |
 |---|---|
-| Landing / magazine (questo repo) | `jmgiupcnsknaxgeegjwf` |
+| Landing / magazine (questo repo) | `kqzwtmesteksllmzdxoo` |
 | CRM (`app.lori-crm.it`) | `miqesculjotuintesbiw` |
 
 Sono due database separati: modificare l'uno non ha effetto sull'altro. Gli articoli
 del magazine, le consulenze e la waitlist vivono nel primo; utenti e dati CRM nel secondo.
 
-L'area riservata (`/admin`) autentica contro Supabase Auth e richiede una riga in
-`user_roles` con `role = 'admin'` per l'utente che accede.
+Tabelle: `posts`, `post_categories`, `consultations`, `launch_notifications`,
+`user_roles`. Le immagini degli articoli stanno nel bucket **privato** `post-images`
+e sono servite dal proxy pubblico `/api/public/post-image/*`.
+
+### Accesso all'area riservata
+
+`/admin` autentica contro Supabase Auth e richiede che l'utente abbia una riga in
+`user_roles` con `role = 'admin'`:
+
+```sql
+insert into public.user_roles (user_id, role)
+select id, 'admin' from auth.users where email = 'indirizzo@esempio.it'
+on conflict do nothing;
+```
+
+L'utente va creato prima da **Authentication → Users** nella dashboard Supabase.
 
 ## Setup
 
@@ -80,22 +75,29 @@ cp .env.example .env    # inserisci le chiavi reali
 npm run dev
 ```
 
-La build di produzione (`npm run build`) produce un output Cloudflare Workers
-(`wrangler.jsonc` è incluso nella configurazione Lovable).
+### Variabili d'ambiente
 
-## Dipendenza da Lovable
+| Variabile | Serve a |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | letture pubbliche lato server (magazine, articoli, sitemap) |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | client Supabase nel browser |
+| `SUPABASE_SERVICE_ROLE_KEY` | **solo server**: area admin, consulenze, upload immagini. Mai esporre al client |
+| `AI_GATEWAY_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_MODEL_FAST` | generazione articoli, titoli, meta e FAQ |
+| `AI_IMAGE_URL`, `AI_IMAGE_MODEL` | generazione immagini (facoltative) |
 
-Il progetto conserva una dipendenza dall'ecosistema Lovable: **`@lovable.dev/vite-tanstack-config`**,
-il preset che fornisce l'intera configurazione Vite (TanStack Start, React, Tailwind, adapter
-Cloudflare, alias `@`, iniezione delle variabili `VITE_*`). È un pacchetto pubblico su npm,
-quindi il progetto compila e gira anche fuori da Lovable senza modifiche.
+URL e publishable key hanno un default nel codice, così le pagine pubbliche
+funzionano anche senza `.env`. La service role key non ha default: senza di essa
+l'area riservata e le prenotazioni restituiscono errore.
 
-Per rimuoverlo del tutto va riscritto `vite.config.ts` dichiarando esplicitamente quei plugin.
-Non è stato fatto qui per non introdurre una riscrittura non verificabile della build.
+## Deploy su Vercel
 
-Le funzioni AI puntano al gateway `ai.gateway.lovable.dev` tramite `LOVABLE_API_KEY`.
-Restano funzionanti finché la chiave è valida; per cambiare provider vanno modificate
-le chiamate `fetch` in `src/lib/blog.functions.ts`.
+`vercel.json` instrada tutte le richieste alla funzione `api/index.mjs`, che
+converte la richiesta Node in `Request` Web e la passa al server SSR prodotto da
+`npm run build` (`dist/server/server.js`); gli asset statici arrivano da
+`dist/client`.
+
+Le variabili d'ambiente vanno impostate nel progetto Vercel: senza
+`SUPABASE_SERVICE_ROLE_KEY` la parte pubblica funziona, l'area riservata no.
 
 ## Collegamento con il CRM
 

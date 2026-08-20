@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# L'area riservata non va indicizzata
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://www.lori-crm.it/sitemap.xml

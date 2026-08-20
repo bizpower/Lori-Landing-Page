@@ -3,69 +3,93 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowRight } from "lucide-react";
+import { Search, ArrowRight, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { listCategories, listPublishedPosts, getFeaturedPost } from "@/lib/blog.functions";
 
+const BASE_URL = "https://www.lori-crm.it";
+
+type MagazineSearch = { page?: number; cat?: number };
+
 export const Route = createFileRoute("/magazine")({
-  head: () => ({
-    meta: [
-      { title: "Magazine LORI — Insights su Lead Generation e LinkedIn" },
-      { name: "description", content: "Guide, casi studio e approfondimenti su lead generation, CRM e crescita su LinkedIn. Articoli pratici dal team di LORI." },
-      { property: "og:title", content: "Magazine LORI — Insights su Lead Generation" },
-      { property: "og:description", content: "Guide e casi studio per fare lead generation seria su LinkedIn." },
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://www.lori-crm.it/magazine" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Magazine LORI — Insights su Lead Generation" },
-      { name: "twitter:description", content: "Guide e casi studio per fare lead generation seria su LinkedIn." },
-    ],
-    links: [{ rel: "canonical", href: "https://www.lori-crm.it/magazine" }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Blog",
-          name: "Magazine LORI",
-          url: "https://www.lori-crm.it/magazine",
-          inLanguage: "it-IT",
-          publisher: { "@id": "https://www.lori-crm.it/#organization" },
-        }),
-      },
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Home", item: "https://www.lori-crm.it/" },
-            { "@type": "ListItem", position: 2, name: "Magazine", item: "https://www.lori-crm.it/magazine" },
-          ],
-        }),
-      },
-    ],
-  }),
-  loader: async () => {
-    const [{ categories }, { posts, total, pageSize }, { post: featured }] = await Promise.all([
-      listCategories(),
-      listPublishedPosts({ data: {} }),
-      getFeaturedPost(),
-    ]);
-    return { categories, posts, total, pageSize, featured };
+  validateSearch: (search: Record<string, unknown>): MagazineSearch => {
+    const page = Number(search.page);
+    const cat = Number(search.cat);
+    return {
+      page: Number.isInteger(page) && page > 1 ? Math.min(page, 500) : undefined,
+      cat: Number.isInteger(cat) && cat > 0 ? cat : undefined,
+    };
+  },
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1, cat: search.cat ?? null }),
+  loader: async ({ deps }) => {
+    // Se Supabase non risponde il magazine deve degradare a stato vuoto, non
+    // restituire un 500: le sezioni statiche della pagina restano leggibili.
+    try {
+      const [{ categories }, { posts, total, pageSize }, featured] = await Promise.all([
+        listCategories(),
+        listPublishedPosts({ data: { page: deps.page, categoryId: deps.cat } }),
+        // L'articolo in evidenza ha senso solo sulla prima pagina, senza filtri.
+        deps.page === 1 && !deps.cat ? getFeaturedPost() : Promise.resolve({ post: null }),
+      ]);
+      return { categories, posts, total, pageSize, featured: featured.post, page: deps.page, failed: false };
+    } catch (err) {
+      console.error("[magazine] caricamento fallito", err);
+      return { categories: [], posts: [], total: 0, pageSize: 9, featured: null, page: deps.page, failed: true };
+    }
+  },
+  head: ({ loaderData }) => {
+    const page = loaderData?.page ?? 1;
+    const canonical = page > 1 ? `${BASE_URL}/magazine?page=${page}` : `${BASE_URL}/magazine`;
+    return {
+      meta: [
+        { title: "Magazine LORI — Insights su Lead Generation e LinkedIn" },
+        { name: "description", content: "Guide, casi studio e approfondimenti su lead generation, CRM e crescita su LinkedIn. Articoli pratici dal team di LORI." },
+        { property: "og:title", content: "Magazine LORI — Insights su Lead Generation" },
+        { property: "og:description", content: "Guide e casi studio per fare lead generation seria su LinkedIn." },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: canonical },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "Magazine LORI — Insights su Lead Generation" },
+        { name: "twitter:description", content: "Guide e casi studio per fare lead generation seria su LinkedIn." },
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            name: "Magazine LORI",
+            url: `${BASE_URL}/magazine`,
+            inLanguage: "it-IT",
+            publisher: { "@id": `${BASE_URL}/#organization` },
+          }),
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BASE_URL}/` },
+              { "@type": "ListItem", position: 2, name: "Magazine", item: `${BASE_URL}/magazine` },
+            ],
+          }),
+        },
+      ],
+    };
   },
   component: MagazinePage,
 });
 
 function MagazinePage() {
-  const { categories, posts, featured } = Route.useLoaderData();
-  const [active, setActive] = useState<number | null>(null);
+  const { categories, posts, featured, total, pageSize, page, failed } = Route.useLoaderData();
+  const { cat } = Route.useSearch();
   const [search, setSearch] = useState("");
-  const filtered = posts.filter((p: any) => {
-    if (active && p.post_category_id !== active) return false;
-    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = posts.filter((p: any) =>
+    !search || p.title.toLowerCase().includes(search.toLowerCase()),
+  );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const fmt = (d: string) => new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit" });
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -89,14 +113,31 @@ function MagazinePage() {
               <Input placeholder="Cerca articoli" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 rounded-full" />
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setActive(null)} className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${active === null ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-secondary/70"}`}>Tutti</button>
+              <Link
+                to="/magazine"
+                search={{}}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${!cat ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-secondary/70"}`}
+              >
+                Tutti
+              </Link>
               {categories.map((c: any) => (
-                <button key={c.id} onClick={() => setActive(c.id)} className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${active === c.id ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-secondary/70"}`}>
+                <Link
+                  key={c.id}
+                  to="/magazine"
+                  search={{ cat: c.id }}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${cat === c.id ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-secondary/70"}`}
+                >
                   {c.name}
-                </button>
+                </Link>
               ))}
             </div>
           </div>
+
+          {failed && (
+            <p className="mt-10 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+              Gli articoli non sono raggiungibili in questo momento. Riprova tra qualche minuto.
+            </p>
+          )}
 
           {featured && (
             <article className="mt-10 grid gap-8 rounded-3xl border border-border bg-card p-6 md:grid-cols-2 md:p-8">
@@ -120,8 +161,10 @@ function MagazinePage() {
           )}
 
           <h3 className="mt-14 text-2xl font-bold tracking-tight">Tutti gli articoli</h3>
-          {filtered.length === 0 && (
-            <p className="mt-6 text-muted-foreground">Nessun articolo pubblicato ancora. Torna presto!</p>
+          {filtered.length === 0 && !failed && (
+            <p className="mt-6 text-muted-foreground">
+              {search ? "Nessun articolo corrisponde alla ricerca." : "Nessun articolo pubblicato ancora. Torna presto!"}
+            </p>
           )}
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.filter((p: any) => !featured || p.id !== featured.id).map((a: any) => (
@@ -140,6 +183,30 @@ function MagazinePage() {
               </Link>
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <nav className="mt-12 flex items-center justify-center gap-2" aria-label="Paginazione articoli">
+              <Link
+                to="/magazine"
+                search={(prev) => ({ ...prev, page: page - 1 > 1 ? page - 1 : undefined })}
+                disabled={page <= 1}
+                className={`inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-sm font-medium transition-colors ${page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-secondary"}`}
+              >
+                <ArrowLeft className="h-4 w-4" /> Precedente
+              </Link>
+              <span className="px-3 text-sm text-muted-foreground">
+                Pagina {page} di {totalPages}
+              </span>
+              <Link
+                to="/magazine"
+                search={(prev) => ({ ...prev, page: page + 1 })}
+                disabled={page >= totalPages}
+                className={`inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-sm font-medium transition-colors ${page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-secondary"}`}
+              >
+                Successiva <ArrowRight className="h-4 w-4" />
+              </Link>
+            </nav>
+          )}
         </section>
       </main>
       <SiteFooter />

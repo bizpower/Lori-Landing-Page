@@ -4,6 +4,9 @@ import { listPublishedPosts } from "@/lib/blog.functions";
 
 const BASE_URL = "https://www.lori-crm.it";
 
+// Limite di sicurezza: 500 pagine da 9 articoli coprono ampiamente il magazine.
+const MAX_SITEMAP_PAGES = 500;
+
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
@@ -13,17 +16,24 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/magazine", changefreq: "daily", priority: "0.9" },
         ];
 
+        // `listPublishedPosts` è paginato: senza scorrere tutte le pagine la
+        // sitemap conterrebbe solo gli articoli più recenti.
         let postEntries: { path: string; lastmod?: string; priority: string; changefreq: string }[] = [];
         try {
-          const { posts } = await listPublishedPosts({ data: {} });
-          postEntries = (posts ?? []).map((p: any) => ({
-            path: `/blog/${p.url}`,
-            lastmod: (p.published_at ?? p.created_at) ? new Date(p.published_at ?? p.created_at).toISOString() : undefined,
-            changefreq: "monthly",
-            priority: "0.7",
-          }));
-        } catch {
-          postEntries = [];
+          for (let page = 1; page <= MAX_SITEMAP_PAGES; page++) {
+            const { posts, total, pageSize } = await listPublishedPosts({ data: { page } });
+            postEntries.push(
+              ...(posts ?? []).map((p: any) => ({
+                path: `/blog/${p.url}`,
+                lastmod: (p.published_at ?? p.created_at) ? new Date(p.published_at ?? p.created_at).toISOString() : undefined,
+                changefreq: "monthly",
+                priority: "0.7",
+              })),
+            );
+            if (posts.length === 0 || page * pageSize >= total) break;
+          }
+        } catch (err) {
+          console.error("[sitemap] elenco articoli non disponibile", err);
         }
 
         const urls = [...staticEntries, ...postEntries].map((e) =>
