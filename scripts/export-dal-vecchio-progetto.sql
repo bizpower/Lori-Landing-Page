@@ -2,6 +2,11 @@
 -- (ref jmgiupcnsknaxgeegjwf, quello gestito da Lovable) verso il nuovo
 -- (ref kqzwtmesteksllmzdxoo).
 --
+-- PRECONDIZIONE: al 20/08/2026 l'host jmgiupcnsknaxgeegjwf.supabase.co non
+-- risolve più, quindi quel progetto non è raggiungibile e questo script non ha
+-- una sorgente da leggere. Serve solo se il progetto viene ripristinato dalla
+-- dashboard Supabase (caso "progetto in pausa").
+--
 -- COME SI USA
 -- 1. Apri il SQL Editor del progetto VECCHIO ed esegui questo file.
 -- 2. Copia il contenuto dell'unica cella del risultato.

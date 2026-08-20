@@ -45,10 +45,12 @@ La landing usa un progetto Supabase **distinto da quello del CRM**:
 | Progetto | Supabase ref |
 |---|---|
 | Landing / magazine (questo repo) | `kqzwtmesteksllmzdxoo` |
-| CRM (`app.lori-crm.it`) | `miqesculjotuintesbiw` |
+| CRM (`app.lori-crm.it`) | `miqesculjotuintesbiw` — ref storico, non più attivo (non risolve) |
 
-Sono due database separati: modificare l'uno non ha effetto sull'altro. Gli articoli
-del magazine, le consulenze e la waitlist vivono nel primo; utenti e dati CRM nel secondo.
+Sono due backend separati: modificare l'uno non ha effetto sull'altro. Articoli del
+magazine, consulenze e waitlist vivono in quello della landing. Il ref del CRM qui
+sopra è quello storico dell'epoca Lovable e non è più attivo: se serve, va
+riletto dal repository del CRM.
 
 Tabelle: `posts`, `post_categories`, `consultations`, `launch_notifications`,
 `user_roles`. Le immagini degli articoli stanno nel bucket **privato** `post-images`
@@ -67,13 +69,23 @@ on conflict do nothing;
 
 L'utente va creato prima da **Authentication → Users** nella dashboard Supabase.
 
-### Migrazione dei dati dal vecchio progetto
+### Il vecchio progetto Supabase non esiste più
 
-Il progetto Supabase precedente (`jmgiupcnsknaxgeegjwf`, gestito da Lovable) è
-separato da questo. Per travasare articoli, categorie, consulenze e iscrizioni:
-esegui `scripts/export-dal-vecchio-progetto.sql` nel SQL Editor del progetto
-vecchio e incolla l'output in quello nuovo. Lo script è idempotente e riaggancia
-le categorie per nome.
+Il backend precedente della landing era `jmgiupcnsknaxgeegjwf`, provisionato da
+Lovable Cloud. **Quell'host non ha più un record DNS**: `jmgiupcnsknaxgeegjwf.supabase.co`
+non risolve, esattamente come un ref inventato, mentre ogni progetto attivo
+risolve regolarmente. Il progetto è quindi stato eliminato o dismesso, e con
+esso articoli, consulenze e iscrizioni che conteneva.
+
+Il progetto Lovable `lori-landig-page` punta ancora a quel ref (lo dichiarano
+sia il suo `.env` sia il suo `supabase/config.toml`), quindi anche la sua
+anteprima è senza database.
+
+Se il progetto risultasse invece solo **in pausa** e venisse riattivato dalla
+dashboard Supabase, `scripts/export-dal-vecchio-progetto.sql` travasa articoli,
+categorie, consulenze e iscrizioni nel database nuovo: si esegue nel SQL Editor
+del progetto vecchio e se ne incolla l'output in quello nuovo. È idempotente e
+riaggancia le categorie per nome.
 
 ## Setup
 
