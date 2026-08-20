@@ -69,23 +69,25 @@ on conflict do nothing;
 
 L'utente va creato prima da **Authentication → Users** nella dashboard Supabase.
 
-### Il vecchio progetto Supabase non esiste più
+### Nessuna eredità dal backend Lovable
 
 Il backend precedente della landing era `jmgiupcnsknaxgeegjwf`, provisionato da
-Lovable Cloud. **Quell'host non ha più un record DNS**: `jmgiupcnsknaxgeegjwf.supabase.co`
-non risolve, esattamente come un ref inventato, mentre ogni progetto attivo
-risolve regolarmente. Il progetto è quindi stato eliminato o dismesso, e con
-esso articoli, consulenze e iscrizioni che conteneva.
+Lovable Cloud su un account non accessibile. Quell'host non ha più un record DNS
+— `jmgiupcnsknaxgeegjwf.supabase.co` non risolve, come un ref inesistente — e i
+suoi dati non sono recuperabili. Il progetto Supabase indicato sopra è quindi
+l'unica fonte di verità: nasce vuoto, con le sole categorie di partenza.
 
 Il progetto Lovable `lori-landig-page` punta ancora a quel ref (lo dichiarano
-sia il suo `.env` sia il suo `supabase/config.toml`), quindi anche la sua
-anteprima è senza database.
+sia il suo `.env` sia il suo `supabase/config.toml`) e va considerato archiviato.
 
-Se il progetto risultasse invece solo **in pausa** e venisse riattivato dalla
-dashboard Supabase, `scripts/export-dal-vecchio-progetto.sql` travasa articoli,
-categorie, consulenze e iscrizioni nel database nuovo: si esegue nel SQL Editor
-del progetto vecchio e se ne incolla l'output in quello nuovo. È idempotente e
-riaggancia le categorie per nome.
+### Nota sulle policy admin lato client
+
+`has_role` è eseguibile solo da `service_role`: le policy RLS che la invocano
+(consulenze, waitlist, `user_roles`, upload immagini) non sono quindi operative
+per un utente `authenticated` che interroghi il database dal browser. Non
+impatta l'applicazione, perché ogni operazione admin passa dal server con la
+service role key. Se un domani servissero query admin lato client, va aggiunto
+`GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;`.
 
 ## Setup
 
