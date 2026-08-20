@@ -67,6 +67,14 @@ on conflict do nothing;
 
 L'utente va creato prima da **Authentication → Users** nella dashboard Supabase.
 
+### Migrazione dei dati dal vecchio progetto
+
+Il progetto Supabase precedente (`jmgiupcnsknaxgeegjwf`, gestito da Lovable) è
+separato da questo. Per travasare articoli, categorie, consulenze e iscrizioni:
+esegui `scripts/export-dal-vecchio-progetto.sql` nel SQL Editor del progetto
+vecchio e incolla l'output in quello nuovo. Lo script è idempotente e riaggancia
+le categorie per nome.
+
 ## Setup
 
 ```bash
