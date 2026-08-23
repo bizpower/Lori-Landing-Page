@@ -237,9 +237,14 @@ function PostPage() {
           <div className="mt-12 rounded-2xl border border-primary/30 bg-primary-soft/40 p-6 text-center md:p-8">
             <h3 className="text-xl font-bold md:text-2xl">Lori CRM - più di un excel</h3>
             <p className="mt-2 text-muted-foreground">Inizia gratis con LORI: il CRM operativo per la tua lead generation.</p>
-            <Link to="/" className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90">
+            <a
+              href="https://app.lori-crm.it"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90"
+            >
               Registrati gratuitamente <ArrowRight className="h-4 w-4" />
-            </Link>
+            </a>
           </div>
         </article>
 
