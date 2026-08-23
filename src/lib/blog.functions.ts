@@ -286,6 +286,20 @@ const PostInput = z.object({
   status: z.union([z.literal(0), z.literal(1)]),
 });
 
+// Gli errori Postgres arrivano all'editor come messaggi grezzi, incomprensibili
+// per chi sta solo scrivendo un articolo. Qui i due casi che capitano davvero
+// vengono tradotti in indicazioni utilizzabili.
+function descriviErroreSalvataggio(error: { code?: string; message: string }): string {
+  if (error.code === "23505" || /duplicate key/i.test(error.message)) {
+    return "Esiste già un articolo con questo slug: cambia il campo URL e riprova.";
+  }
+  if (error.code === "22001" || /value too long/i.test(error.message)) {
+    return "Uno dei campi supera la lunghezza consentita: controlla slug (max 240 caratteri) e firma (max 20).";
+  }
+  console.error("[adminSavePost] errore database", error);
+  return `Salvataggio non riuscito: ${error.message}`;
+}
+
 export const adminSavePost = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => PostInput.parse(d))
   .handler(async ({ data }) => {
@@ -304,11 +318,11 @@ export const adminSavePost = createServerFn({ method: "POST" })
     };
     if (data.id) {
       const { error } = await supabaseAdmin.from("posts").update(payload).eq("id", data.id);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(descriviErroreSalvataggio(error));
       return { id: data.id };
     } else {
       const { data: row, error } = await supabaseAdmin.from("posts").insert(payload).select("id").single();
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(descriviErroreSalvataggio(error));
       return { id: row.id };
     }
   });
