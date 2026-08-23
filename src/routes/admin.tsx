@@ -4,7 +4,7 @@ import { adminCheck, adminLogin, adminLogout } from "@/lib/blog.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import loriLogo from "@/assets/lori-logo.svg";
 
 export const Route = createFileRoute("/admin")({
@@ -53,7 +53,13 @@ function LoginGate({ onSuccess }: { onSuccess: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/40 px-4">
+      <Link
+        to="/"
+        className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Torna al sito
+      </Link>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
