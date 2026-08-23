@@ -37,6 +37,11 @@ export const Route = createFileRoute("/blog/$slug")({
       articleSection: p.post_categories?.name,
       mainEntityOfPage: { "@type": "WebPage", "@id": url },
     };
+    // og:image deve essere assoluto: le copertine servite dal progetto hanno un
+    // percorso relativo, che i crawler dei social non sanno risolvere.
+    const ogImage = p.img_url
+      ? (/^https?:\/\//i.test(p.img_url) ? p.img_url : `https://www.lori-crm.it${p.img_url}`)
+      : null;
     const breadcrumbLd = {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
@@ -56,7 +61,7 @@ export const Route = createFileRoute("/blog/$slug")({
         { property: "og:url", content: url },
         { property: "article:published_time", content: date },
         { property: "article:modified_time", content: date },
-        ...(p.img_url ? [{ property: "og:image", content: p.img_url }, { name: "twitter:image", content: p.img_url }] : []),
+        ...(ogImage ? [{ property: "og:image", content: ogImage }, { name: "twitter:image", content: ogImage }] : []),
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: p.title },
         { name: "twitter:description", content: desc },
