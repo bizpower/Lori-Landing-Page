@@ -80,6 +80,17 @@ l'unica fonte di verità: nasce vuoto, con le sole categorie di partenza.
 Il progetto Lovable `lori-landig-page` punta ancora a quel ref (lo dichiarano
 sia il suo `.env` sia il suo `supabase/config.toml`) e va considerato archiviato.
 
+La conferma è arrivata dall'agente Lovable stesso, interrogato dall'interno della
+sua infrastruttura: ogni query sul database fallisce con
+`SUPABASE_INTERNAL_ERROR / status 544 / Connection terminated due to connection timeout`,
+e il ref configurato a runtime resta `jmgiupcnsknaxgeegjwf`. Non esiste quindi un
+secondo database a cui i dati siano stati spostati. Articoli, consulenze e
+iscrizioni del vecchio magazine non sono recuperabili.
+
+Le immagini di copertina fanno eccezione: erano ospitate su Cloudinary, servizio
+esterno, e il database conteneva solo il loro URL. Restano quindi disponibili
+nella Media Library di quell'account.
+
 ### Nota sulle policy admin lato client
 
 `has_role` è eseguibile solo da `service_role`: le policy RLS che la invocano
