@@ -1,13 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { TipTapEditor } from "@/components/tiptap-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Loader2, Wand2, ImagePlus } from "lucide-react";
+import { Sparkles, Loader2, Wand2, ImagePlus, Type, AlignLeft, HelpCircle, Link2, Check, AlertTriangle } from "lucide-react";
 import {
   adminSavePost, aiGenerateArticle, slugifyServer, adminAddCategory,
   aiSeoHighlight, aiAddInlineImages,
+  aiGenerateTitle, aiGenerateMeta, aiGenerateFaq, aiSuggestInternalLinks,
 } from "@/lib/blog.functions";
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -30,6 +31,16 @@ function normalizeCoverUrl(value: string) {
   return url.replace(/\s+/g, "%20");
 }
 
+// Conta le parole del testo reale, senza i tag: è la metrica su cui si ragiona
+// quando si valuta la profondità di un articolo.
+function contaParole(html: string) {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).length;
+}
+
+function contaOccorrenze(html: string, re: RegExp) {
+  return (html.match(re) ?? []).length;
+}
+
 export function PostEditorForm({ initial, categories }: { initial?: InitialPost; categories: Category[] }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -48,6 +59,10 @@ export function PostEditorForm({ initial, categories }: { initial?: InitialPost;
   const [highlightLoading, setHighlightLoading] = useState(false);
   const [imgGenLoading, setImgGenLoading] = useState(false);
   const editorApi = useRef<{ setHTML: (html: string) => void } | null>(null);
+
+  // SEO / GEO
+  const [seoBusy, setSeoBusy] = useState<null | "titolo" | "meta" | "faq" | "link">(null);
+  const [linkSuggeriti, setLinkSuggeriti] = useState<{ title?: string; url: string; anchor: string }[]>([]);
 
   // AI
   const [aiOpen, setAiOpen] = useState(false);
@@ -154,6 +169,90 @@ export function PostEditorForm({ initial, categories }: { initial?: InitialPost;
     finally { setImgGenLoading(false); }
   };
 
+  // ── Azioni SEO / GEO ───────────────────────────────────────────
+  const richiedeCorpo = (min: number) => {
+    if (!body || contaParole(body) < min) {
+      toast.error(`Scrivi prima almeno ${min} parole di contenuto`);
+      return false;
+    }
+    return true;
+  };
+
+  const generaTitolo = async () => {
+    if (!richiedeCorpo(50)) return;
+    setSeoBusy("titolo");
+    try {
+      const res = await aiGenerateTitle({ data: { html: body, keyword: aiKeyword || undefined } });
+      setTitle(res.title);
+      toast.success("Titolo generato");
+    } catch (e: any) { toast.error(e.message ?? "Errore generazione titolo"); }
+    finally { setSeoBusy(null); }
+  };
+
+  const generaMeta = async () => {
+    if (!richiedeCorpo(50)) return;
+    setSeoBusy("meta");
+    try {
+      const res = await aiGenerateMeta({ data: { html: body, keyword: aiKeyword || undefined } });
+      setMeta(res.meta);
+      toast.success("Meta description generata");
+    } catch (e: any) { toast.error(e.message ?? "Errore generazione meta"); }
+    finally { setSeoBusy(null); }
+  };
+
+  // Il blocco FAQ va in fondo e nel formato h2 + coppie h3/p, perché è quello
+  // che la pagina articolo riconosce per emettere lo schema FAQPage.
+  const generaFaq = async () => {
+    if (!richiedeCorpo(100)) return;
+    setSeoBusy("faq");
+    try {
+      const res = await aiGenerateFaq({ data: { html: body, keyword: aiKeyword || undefined } });
+      const inizioFaq = body.search(/<h2[^>]*>\s*Domande frequenti/i);
+      const aggiornato = inizioFaq === -1 ? body + res.html : body.slice(0, inizioFaq) + res.html;
+      setBody(aggiornato);
+      editorApi.current?.setHTML(aggiornato);
+      toast.success(inizioFaq === -1 ? "Blocco FAQ aggiunto" : "Blocco FAQ rigenerato");
+    } catch (e: any) { toast.error(e.message ?? "Errore generazione FAQ"); }
+    finally { setSeoBusy(null); }
+  };
+
+  const cercaLinkInterni = async () => {
+    if (!richiedeCorpo(100)) return;
+    setSeoBusy("link");
+    try {
+      const res = await aiSuggestInternalLinks({ data: { html: body, excludeId: initial?.id ?? null } });
+      setLinkSuggeriti(res.suggestions ?? []);
+      if ((res.suggestions ?? []).length === 0) toast("Nessun articolo pertinente da collegare");
+    } catch (e: any) { toast.error(e.message ?? "Errore ricerca link"); }
+    finally { setSeoBusy(null); }
+  };
+
+  const inserisciLink = (s: { url: string; anchor: string }) => {
+    const paragrafo = `<p>Approfondisci: <a href="/blog/${s.url}">${s.anchor}</a></p>`;
+    const inizioFaq = body.search(/<h2[^>]*>\s*Domande frequenti/i);
+    const aggiornato = inizioFaq === -1
+      ? body + paragrafo
+      : body.slice(0, inizioFaq) + paragrafo + body.slice(inizioFaq);
+    setBody(aggiornato);
+    editorApi.current?.setHTML(aggiornato);
+    setLinkSuggeriti((prev) => prev.filter((x) => x.url !== s.url));
+    toast.success("Link interno inserito");
+  };
+
+  // Diagnostica live: gli stessi criteri applicati agli articoli del magazine.
+  const diagnostica = useMemo(() => {
+    const parole = contaParole(body);
+    return [
+      { etichetta: "Parole", valore: String(parole), ok: parole >= 800, nota: "800+ per posizionarsi" },
+      { etichetta: "Titolo", valore: `${title.length} car.`, ok: title.length >= 35 && title.length <= 65, nota: "35-65 caratteri" },
+      { etichetta: "Meta description", valore: `${meta.length} car.`, ok: meta.length >= 120 && meta.length <= 160, nota: "120-160 caratteri" },
+      { etichetta: "Sottotitoli H2", valore: String(contaOccorrenze(body, /<h2/gi)), ok: contaOccorrenze(body, /<h2/gi) >= 3, nota: "almeno 3" },
+      { etichetta: "Blocco FAQ", valore: /<h2[^>]*>\s*Domande frequenti/i.test(body) ? "presente" : "assente", ok: /<h2[^>]*>\s*Domande frequenti/i.test(body), nota: "genera lo schema FAQPage" },
+      { etichetta: "Link interni", valore: String(contaOccorrenze(body, /href="\/blog\//gi)), ok: contaOccorrenze(body, /href="\/blog\//gi) >= 1, nota: "almeno 1" },
+      { etichetta: "Copertina", valore: coverUrl ? "impostata" : "assente", ok: Boolean(coverUrl), nota: "serve per og:image" },
+    ];
+  }, [body, title, meta, coverUrl]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="space-y-5">
@@ -218,6 +317,70 @@ export function PostEditorForm({ initial, categories }: { initial?: InitialPost;
               </Button>
             </div>
           )}
+        </div>
+
+        <div className="rounded-xl border border-seo-accent/40 bg-seo-accent-soft/40 p-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <Wand2 className="h-4 w-4 text-seo-accent" /> SEO &amp; GEO
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Generati dal contenuto dell&apos;articolo. Il blocco FAQ produce lo schema FAQPage.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button size="sm" variant="outline" onClick={generaTitolo} disabled={seoBusy !== null}>
+              {seoBusy === "titolo" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Type className="mr-1.5 h-3.5 w-3.5" />}
+              Titolo
+            </Button>
+            <Button size="sm" variant="outline" onClick={generaMeta} disabled={seoBusy !== null}>
+              {seoBusy === "meta" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <AlignLeft className="mr-1.5 h-3.5 w-3.5" />}
+              Meta
+            </Button>
+            <Button size="sm" variant="outline" onClick={generaFaq} disabled={seoBusy !== null}>
+              {seoBusy === "faq" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <HelpCircle className="mr-1.5 h-3.5 w-3.5" />}
+              FAQ
+            </Button>
+            <Button size="sm" variant="outline" onClick={cercaLinkInterni} disabled={seoBusy !== null}>
+              {seoBusy === "link" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Link2 className="mr-1.5 h-3.5 w-3.5" />}
+              Link
+            </Button>
+          </div>
+
+          {linkSuggeriti.length > 0 && (
+            <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
+              <p className="text-xs font-medium text-muted-foreground">Articoli pertinenti da collegare</p>
+              {linkSuggeriti.map((sug) => (
+                <button
+                  key={sug.url}
+                  type="button"
+                  onClick={() => inserisciLink(sug)}
+                  className="flex w-full items-start gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-xs transition hover:border-primary/50 hover:bg-secondary"
+                >
+                  <Link2 className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                  <span>
+                    <span className="font-medium">{sug.anchor}</span>
+                    <span className="block text-muted-foreground">/blog/{sug.url}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="font-semibold">Diagnostica</div>
+          <ul className="mt-2 space-y-1.5">
+            {diagnostica.map((d) => (
+              <li key={d.etichetta} className="flex items-start gap-2 text-xs">
+                {d.ok
+                  ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />}
+                <span className="flex-1">
+                  <span className="font-medium">{d.etichetta}:</span> {d.valore}
+                  {!d.ok && <span className="block text-muted-foreground">{d.nota}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="space-y-3 rounded-xl border border-border bg-card p-4">
